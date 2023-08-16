@@ -32,8 +32,7 @@ Bu kod, Raspberry Pi Pico mikrodenetleyicisi üzerinde bir döner enkoder (rotar
 
 **Kullanım:**
 
-1. Pico-Vscode yapılandırması ve SDK kurulumu için [Pico-Vscode](https://github.
-com/raspberrypi/pico-setup-windows) sayfasını ziyaret edin.
+1. Pico-Vscode yapılandırması ve SDK kurulumu için [Pico-Vscode](https://github.com/raspberrypi/pico-setup-windows) sayfasını ziyaret edin.
 2. Gerekli donanım bağlantılarını yapın.
 
 3. Sensör verisini okuyarak açıyı görüntülemek için `main()` fonksiyonunu kullanın.
