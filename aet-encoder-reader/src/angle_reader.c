@@ -1,7 +1,9 @@
 #include <stdio.h>
+#include <fstream>
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 #include "pico/time.h"
+
 
 
 /* --- Constants --- */
@@ -81,6 +83,11 @@ int main()
 
 void Setup()
 {
+
+    
+    //set up serial
+    stdio_init_all();
+    
     //set up pins
    
     gpio_init(CLOCK_PIN);
@@ -108,9 +115,27 @@ void Setup()
     gpio_set_dir(ABS_ZERO_BUTTON, GPIO_IN);
     gpio_pull_down(ABS_ZERO_BUTTON);    
     gpio_set_irq_enabled_with_callback(ABS_ZERO_BUTTON, GPIO_IRQ_EDGE_FALL, true, &SetZeroPosition);
-    
-    //set up serial
-    stdio_init_all();
+
+
+    std::ifstream file("zero_position.txt");
+    if (file.is_open())
+    {
+        if (file.peek() == std::ifstream::traits_type::eof())
+        {
+            printf("File is empty\n");
+        }
+        else
+        {
+            file >> ZERO_POSITION;
+        }
+        file.close();
+    }
+    else
+    {
+        printf("Unable to open file\n");
+        ZERO_POSITION = 0;
+    }
+
     return;
 }
 
@@ -203,6 +228,19 @@ void SetZeroPosition()
     }
     
     ZERO_POSITION =  (uint16_t)(sum / 100);
+
+    printf("Zero position set to: %d\n", ZERO_POSITION);
+
+    std::ofstream file("zero_position.txt");
+    if (file.is_open())
+    {
+        file << ZERO_POSITION;
+        file.close();
+    }
+    else
+    {
+        printf("Unable to open file\n");
+    }
     
     return;
 }
