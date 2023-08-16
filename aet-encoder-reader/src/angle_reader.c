@@ -1,10 +1,27 @@
 #include <stdio.h>
-#include <fstream>
+#include "hardware/flash.h"
+#include "hardware/sync.h"
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 #include "pico/time.h"
 
+const uint32_t FLASH_ZERO_POSITION_OFFSET = 0x1000; // örnek olarak 1MB offset seçildi
 
+
+void WriteZeroPositionToFlash(uint16_t zeroPosition)
+{
+    uint32_t ints = save_and_disable_interrupts(); // kesmeleri kapat
+    flash_range_erase(FLASH_ZERO_POSITION_OFFSET, sizeof(zeroPosition));
+    flash_range_program(FLASH_ZERO_POSITION_OFFSET, (const uint8_t *)&zeroPosition, sizeof(zeroPosition));
+    restore_interrupts(ints); // kesmeleri geri aç
+}
+
+uint16_t ReadZeroPositionFromFlash()
+{
+    uint16_t zeroPosition;
+    memcpy(&zeroPosition, (const void*)(XIP_BASE + FLASH_ZERO_POSITION_OFFSET), sizeof(zeroPosition));
+    return zeroPosition;
+}
 
 /* --- Constants --- */
  
@@ -116,26 +133,17 @@ void Setup()
     gpio_pull_down(ABS_ZERO_BUTTON);    
     gpio_set_irq_enabled_with_callback(ABS_ZERO_BUTTON, GPIO_IRQ_EDGE_FALL, true, &SetZeroPosition);
 
-
-    std::ifstream file("zero_position.txt");
-    if (file.is_open())
+    
+    // read zero position from flash
+    uint16_t position = ReadZeroPositionFromFlash();
+    if (position == 0xFFFF)
     {
-        if (file.peek() == std::ifstream::traits_type::eof())
-        {
-            printf("File is empty\n");
-        }
-        else
-        {
-            file >> ZERO_POSITION;
-        }
-        file.close();
+        ZERO_POSITION = 0;
     }
     else
     {
-        printf("Unable to open file\n");
-        ZERO_POSITION = 0;
+        ZERO_POSITION = position;
     }
-
     return;
 }
 
@@ -231,17 +239,7 @@ void SetZeroPosition()
 
     printf("Zero position set to: %d\n", ZERO_POSITION);
 
-    std::ofstream file("zero_position.txt");
-    if (file.is_open())
-    {
-        file << ZERO_POSITION;
-        file.close();
-    }
-    else
-    {
-        printf("Unable to open file\n");
-    }
-    
+    WriteZeroPositionToFlash(ZERO_POSITION);
     return;
 }
 
