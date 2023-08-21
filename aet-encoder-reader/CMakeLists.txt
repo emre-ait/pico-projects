@@ -13,15 +13,18 @@ project(angle_reader)
 
 pico_sdk_init()
 
+add_subdirectory(src)
 if (TARGET tinyusb_device)
-    add_executable(angle_reader
-        src/angle_reader.c
+    add_executable(main
+        main.cpp
     )
-    
-    target_link_libraries(angle_reader pico_stdlib)
-    pico_enable_stdio_usb(angle_reader 1)
-    pico_enable_stdio_uart(angle_reader 0)
-    pico_add_extra_outputs(angle_reader)
+
+    target_include_directories(main PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/include)
+    target_link_libraries(main pico_stdlib aeat6600 ili934x hardware_flash 
+    )
+    pico_enable_stdio_usb(main 1)
+    pico_enable_stdio_uart(main 0)
+    pico_add_extra_outputs(main)
 else()
     message(WARNING "tinyusb_device hedefi bulunamadı. angle_reader oluşturulmayacak.")
 endif()
