@@ -124,7 +124,9 @@ public:
     void drawChar(uint16_t x, uint16_t y, char c, uint16_t colour, GFXfont *font);
     void charBounds(char c, int16_t *x, int16_t *y, int16_t *minx, int16_t *miny, int16_t *maxx, int16_t *maxy, GFXfont *font);
     void textBounds(const char *str, int16_t x, int16_t y, int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h, GFXfont *font);
-
+    void DrawText(const char *str, int16_t x, int16_t y, uint16_t colour, GFXfont *font);
+    void fillRectBounds(const char *str, int16_t x, int16_t y, uint16_t colour, GFXfont *font);
+    void fillRectBoundsChanged(const char *prevStr, const char *newStr, int16_t x, int16_t y, uint16_t colour, GFXfont *font);
     uint16_t colour565(uint8_t r, uint8_t g, uint8_t b);
 private:
     void _write(uint8_t cmd, uint8_t *data = NULL, size_t dataLen = 0);

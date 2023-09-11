@@ -36,6 +36,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "hardware/gpio.h"
 #include "pico/time.h"
 #include <cstring>
+#include <iostream>
+#include <string.h>
 
 #ifndef pgm_read_byte
 #define pgm_read_byte(addr) (*(const uint8_t *)(addr))
@@ -398,6 +400,26 @@ void ILI934X::charBounds(char c, int16_t *x, int16_t *y, int16_t *minx, int16_t 
     }
 }
 
+void ILI934X::DrawText(const char *str, int16_t x, int16_t y, uint16_t colour, GFXfont *font)
+{
+    int16_t x1 = x, y1 = y;                // Başlangıç koordinatlarını sakla
+    int16_t textWidth = 0, textHeight = 0; // Metin boyutunu sakla
+
+    // Metin boyutunu ve sınırlarını hesapla
+    textBounds(str, x, y, &x1, &y1, (uint16_t *)&textWidth, (uint16_t *)&textHeight, font);
+
+    // Başlangıç pozisyonlarını sıfırla
+    x = x1;
+    y = y1;
+
+    while (*str)
+    {
+        char c = *str++;
+        drawChar(x, y, c, colour, font);                                 // Karakteri çiz
+        charBounds(c, &x, &y, nullptr, nullptr, nullptr, nullptr, font); // x ve y pozisyonlarını güncelle (ilerlet)
+    }
+}
+
 void ILI934X::textBounds(const char *str, int16_t x, int16_t y, int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h, GFXfont *font)
 {
     uint8_t c;                                                  // Current character
@@ -424,6 +446,46 @@ void ILI934X::textBounds(const char *str, int16_t x, int16_t y, int16_t *x1, int
     { // Same for height
         *y1 = miny;
         *h = maxy - miny + 1;
+    }
+}
+void ILI934X::fillRectBounds(const char *str, int16_t x, int16_t y, uint16_t colour, GFXfont *font)
+{
+    int16_t x1, y1, width, height;
+    textBounds(str, x, y, &x1, &y1, (uint16_t *)&width, (uint16_t *)&height, font);
+
+    if (width > 0 && height > 0)
+    {
+        fillRect(x1, y1 - height, height + 1, width + 1, colour);
+    }
+}
+
+void ILI934X::fillRectBoundsChanged(const char *prevStr, const char *newStr, int16_t x, int16_t y, uint16_t colour, GFXfont *font)
+{
+    int16_t x1, y1, x2, y2, width, height, width2, height2;
+
+    // find the first index where the strings differ
+    size_t diffIndex = 0;
+    while (prevStr[diffIndex] && newStr[diffIndex] && prevStr[diffIndex] == newStr[diffIndex])
+    {
+        diffIndex++;
+    }
+
+    // Calculate the prevStr size of the characters
+    textBounds(prevStr, x, y, &x2, &y2, (uint16_t *)&width2, (uint16_t *)&height2, font);
+    // Create a variable to store the prevStr characters after the diffIndex of prevStr characters
+    char prevStrAfterDiff[10];
+
+    // Copy the characters after the diffIndex of characters to the prevStrAfterDiff variable
+    strcpy(prevStrAfterDiff, prevStr + diffIndex);
+
+    // Calculate the prevStrAfterDiff size of the characters
+    textBounds(prevStrAfterDiff, x, y, &x1, &y1, (uint16_t *)&width, (uint16_t *)&height, font);
+
+
+    // Clear the area
+    if (width > 0 && height > 0)
+    {
+        fillRect(x1+width2-width, y1-height, height + 1, width + 3, colour);
     }
 }
 

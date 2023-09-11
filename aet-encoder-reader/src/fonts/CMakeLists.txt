@@ -1,3 +1,5 @@
+#set(CMAKE_BUILD_TYPE "Release")
+
 if (NOT TARGET fonts_headers)
     add_library(fonts_headers INTERFACE)
     target_include_directories(fonts_headers INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include)
