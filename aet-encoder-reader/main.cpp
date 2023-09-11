@@ -2,6 +2,7 @@
 #include "pico/stdlib.h"
 #include "hardware/flash.h"
 #include "hardware/irq.h"
+#include "hardware/sync.h"
 #include <stdlib.h>
 #include <string>
 #include <sstream>
@@ -13,24 +14,16 @@
 #include "ili934x.h"
 #include "hardware/gpio.h"
 #include "gfxfont.h"
-#include "FreeMono18pt7b.h"
-#include "FreeMono12pt7b.h"
-#include "FreeMono24pt7b.h"
-#include "FreeMonoBold12pt7b.h"
-#include "FreeMonoBold18pt7b.h"
 #include "FreeSansBold12pt7b.h"
 
-#define FLASH_TARGET_OFFSET (256 * 1024)
+/* Flash Defines*/
+#define FLASH_TARGET_OFFSET 0x100000 // 1MB
+const uint8_t *FlashTargetContents = (uint8_t *)(FLASH_TARGET_OFFSET + XIP_BASE);
 
-const uint8_t *flash_target_contents = (const uint8_t *)(XIP_BASE + FLASH_TARGET_OFFSET);
 
 /* FONTS WITH POINT SIZE */
-GFXfont *font_mono12 = const_cast<GFXfont *>(&FreeMono12pt7b);
-GFXfont *font_mono18 = const_cast<GFXfont *>(&FreeMono18pt7b);
-GFXfont *font_mono24 = const_cast<GFXfont *>(&FreeMono24pt7b);
-GFXfont *font_monob12 = const_cast<GFXfont *>(&FreeMonoBold12pt7b);
 GFXfont *font_sansb12 = const_cast<GFXfont *>(&FreeSansBold12pt7b);
-GFXfont *font_monob18 = const_cast<GFXfont *>(&FreeMonoBold18pt7b);
+
 
 /* SPI LCD PINS*/
 #define PIN_MISO 4
@@ -88,19 +81,31 @@ void IncAbsZeroPositionCallback(uint gpio, uint32_t events)
     if (gpio == ABS_A_ZERO_BUTTON)
     {
         A_Axis_Abs_ZeroPos = CurrentPositionAxisA;
-        uint8_t *data = (uint8_t *)&A_Axis_Abs_ZeroPos;
 
-        // flash_range_erase(FLASH_TARGET_OFFSET, FLASH_TARGET_SIZE);
-        // flash_range_program(FLASH_TARGET_OFFSET, data, FLASH_TARGET_SIZE);
+        uint32_t ints = save_and_disable_interrupts(); 
+        printf("Zero Position Callback \n");
+        uint8_t data[FLASH_PAGE_SIZE];
+        data[0] = (uint8_t)(A_Axis_Abs_ZeroPos >> 8);
+        data[1] = (uint8_t)(A_Axis_Abs_ZeroPos & 0xFF);
+        printf("writing %d to flash\n", data[0] << 8 | data[1]);
+        flash_range_erase(FLASH_TARGET_OFFSET, FLASH_PAGE_SIZE);
+        flash_range_program(FLASH_TARGET_OFFSET, data, FLASH_PAGE_SIZE);
+        restore_interrupts (ints);
     }
 
     if (gpio == ABS_C_ZERO_BUTTON)
     {
         C_Axis_Abs_ZeroPos = CurrentPositionAxisC;
-        uint8_t *data = (uint8_t *)&C_Axis_Abs_ZeroPos;
 
-        // flash_range_erase(FLASH_TARGET_OFFSET, FLASH_TARGET_SIZE);
-        // flash_range_program(FLASH_TARGET_OFFSET, data, FLASH_TARGET_SIZE);
+        uint32_t ints = save_and_disable_interrupts(); 
+        printf("Zero Position Callback \n");
+        uint8_t data[FLASH_PAGE_SIZE];
+        data[2] = (uint8_t)(C_Axis_Abs_ZeroPos >> 8);
+        data[3] = (uint8_t)(C_Axis_Abs_ZeroPos & 0xFF);
+        printf("writing %d to flash\n", data[2] << 8 | data[3]);
+        flash_range_erase(FLASH_TARGET_OFFSET, FLASH_PAGE_SIZE);
+        flash_range_program(FLASH_TARGET_OFFSET, data, FLASH_PAGE_SIZE);
+        restore_interrupts (ints);
     }
 
     if (gpio == INC_A_ZERO_BUTTON)
@@ -190,6 +195,46 @@ void Display_Axis_A(u_int16_t raw_data_A)
 
 }
 
+void PrepareFlash()
+{   
+    uint32_t ints = save_and_disable_interrupts();
+    //erase flash
+    uint16_t data_a = (FlashTargetContents[0] << 8) | FlashTargetContents[1];
+    uint16_t data_b = (FlashTargetContents[2] << 8) | FlashTargetContents[3];
+    if (data_a == 0xFFFF)
+    {
+        printf("Flash Not Programmed before setting up 0\n");
+        flash_range_erase(FLASH_TARGET_OFFSET, FLASH_PAGE_SIZE);
+        uint8_t data[FLASH_PAGE_SIZE];
+        data[0] = 0x00;
+        data[1] = 0x00;
+        flash_range_program(FLASH_TARGET_OFFSET, data, FLASH_PAGE_SIZE);
+        A_Axis_Abs_ZeroPos = 0;
+    }
+    else 
+    {
+        printf("Flash Programmed before value %d\n", data_a);
+        A_Axis_Abs_ZeroPos = data_a;
+    }
+    if (data_b == 0xFFFF)
+    {
+        printf("Flash Not Programmed before setting up 0\n");
+        flash_range_erase(FLASH_TARGET_OFFSET, FLASH_PAGE_SIZE);
+        uint8_t data[FLASH_PAGE_SIZE];
+        data[2] = 0x00;
+        data[3] = 0x00;
+        flash_range_program(FLASH_TARGET_OFFSET, data, FLASH_PAGE_SIZE);
+        C_Axis_Abs_ZeroPos = 0;
+    }
+    else 
+    {
+        printf("Flash Programmed before value %d\n", data_b);
+        C_Axis_Abs_ZeroPos = data_b;
+    }
+    restore_interrupts (ints);
+    return;
+}
+
 int main()
 {
     
@@ -219,6 +264,7 @@ int main()
     display->setRotation(R270DEG);
     display->clear(display->colour565(0, 0, 0));
     Draw_Chart();
+    PrepareFlash();
 
     AEAT6600 *encoder_a_axis = new AEAT6600(
         A_AXIS_CLOCK_PIN,

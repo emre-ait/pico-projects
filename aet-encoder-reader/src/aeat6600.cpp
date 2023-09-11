@@ -82,9 +82,10 @@ uint16_t AEAT6600::Read()
     gpio_put(_clck_pin, 1);
     sleep_us(20);
 
+    if(data > _old_position+1 || data < _old_position -1)
+        _old_position = data;
 
-    _old_position = data;
-    return data;
+    return _old_position;
 }
 
 void AEAT6600::Program()
